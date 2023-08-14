@@ -1,5 +1,5 @@
 pub use crate::*;
-pub use sequence::{Sequence, RawSeq};
+pub use sequence::*;
 use test_case::test_case;
 pub use token::*;
 pub use transform::*;
@@ -12,7 +12,7 @@ pub use transform::*;
 pub fn remove_a_test(text: &str, expected: &str) {
     let seq = RawSeq::new("a");
     let tox = &mut Token::token_vec_from_str(text, |_| ());
-    let trans = RemoveTransform { };
-    seq.replace_all_matches(trans, tox);
+    let trans = RemoveTransform {};
+    replace_all_matches(&seq, trans, tox);
     assert_eq!(expected, Token::vec_content(tox));
 }
