@@ -8,8 +8,6 @@ pub use token::*;
 #[test_case("", false; "matching empty string")]
 #[test_case("aa", false; "multiple of correct token")]
 pub fn raw_seq_test(text: &str, should_match: bool) {
-    let seq = RawSeq {
-        text: "a".to_string(),
-    };
-    seq.assert_match(text, should_match);
+    let seq = RawSeq::new("a");
+    assert_match(seq, text, should_match);
 }

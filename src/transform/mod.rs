@@ -3,7 +3,7 @@ pub use token::*;
 pub use sequence::*;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub trait Transform<T> {
     fn transform<'a>(&self, tokens: Vec<Token<'a, T>>) -> Vec<Token<'a, T>>;
@@ -27,9 +27,10 @@ impl <T: Clone>Transform<T> for ShallowTransform<T> {
     }
 }
 
-pub fn transform_datas_from_string<T: Clone>(seq: impl Sequence, mut tox: Vec<Token<'_, T>>, start_data: T) -> Vec<T> {
-    seq.test_and_transform(ShallowTransform {
-        data: start_data
-    }, &mut tox, 0);
-    tox.iter().map(|t| t.data.clone()).collect()
+pub struct RemoveTransform { }
+
+impl <T>Transform<T> for RemoveTransform {
+    fn transform<'a>(&self, _: Vec<Token<'a, T>>) -> Vec<Token<'a, T>> {
+        vec![]
+    }
 }

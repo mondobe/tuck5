@@ -16,7 +16,7 @@ pub enum TokenType<'a, T> {
 }
 
 impl<'a, T> Token<'a, T> {
-    pub fn token_vec_from_str(from: &'a str, data: &dyn Fn(char) -> T) -> Vec<Token<'a, T>> {
+    pub fn token_vec_from_str(from: &'a str, data: impl Fn(char) -> T) -> Vec<Token<'a, T>> {
         (0..from.len())
             .map(|i| Token {
                 t_type: TokenType::Leaf(i..i + 1),
@@ -57,6 +57,12 @@ impl<'a, T> Token<'a, T> {
             .fold(String::new(), |l, r| format!("{l}\n{r}"))
     }
 
+    pub fn vec_content(tox: &Vec<Token<T>>) -> String {
+        tox.iter()
+            .map(|i| i.content())
+            .fold(String::new(), |l, r| format!("{l}{r}"))
+    }
+
     pub fn graph_depth(&self, depth: usize, buf: &mut String) -> Result<(), std::fmt::Error> {
         for _ in 0..depth {
             write!(buf, "\t")?;
@@ -73,7 +79,7 @@ impl<'a, T> Token<'a, T> {
                 writeln!(buf, "}}")?;
             }
             TokenType::Leaf(_) => {
-                writeln!(buf, "{:#?}", self.content())?;
+                writeln!(buf, "{}", self.content())?;
             }
         }
 
