@@ -53,6 +53,12 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
             .is_some_and(|c| c.is_whitespace())
     });
 
+    let paren_seq = MultipleSeq::new(vec![
+        Box::new(RawSeq::new("(")),
+        Box::new(has_tag("expr")),
+        Box::new(RawSeq::new(")")),
+    ]);
+
     let md_seq = MultipleSeq::new(vec![
         Box::new(has_tag("expr")),
         Box::new(ChooseSeq::from_str("*/")),
@@ -68,6 +74,9 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     replace_all_matches(&whitespace_seq, RemoveTransform {}, &mut tox);
 
     repeat_until_no_change(&[
+        &|c| replace_all_matches(&paren_seq, 
+            DeepTransform { data: vec!["parens", "expr"] }, 
+            c),
         &|c| replace_all_matches(&md_seq, 
             DeepTransform { data: vec!["oper", "expr"] }, 
             c),
@@ -82,6 +91,12 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 pub fn eval(token: &Token<'_, Vec<&str>>) -> Option<f64> {
     if !token.data.contains(&"expr") {
         return None;
+    }
+
+    if token.data.contains(&"parens") {
+        if let TokenType::Branch(children) = &token.t_type {
+            return eval(children.get(1)?);
+        }
     }
 
     if token.data.contains(&"number") {
@@ -118,7 +133,15 @@ pub fn eval_first(tokens: &Vec<Token<'_, Vec<&str>>>) -> Option<f64> {
     }
 }
 
+pub fn eval_text(text: &str) -> Option<f64> {
+    eval_first(&calc_tokens(text))
+}
+
 #[test_case("1", Some(1.0); "one-digit number")]
+#[test_case("a", None; "basic letter fail")]
+#[test_case("", None; "no text")]
+#[test_case(" 101", Some(101.0); "leading space")]
+#[test_case("0101", None; "leading zero")]
 #[test_case("123", Some(123.0); "multiple-digit number")]
 #[test_case("123.0", Some(123.0); "multiple-digit number with decimal")]
 #[test_case("0", Some(0.0); "zero")]
@@ -128,8 +151,11 @@ pub fn eval_first(tokens: &Vec<Token<'_, Vec<&str>>>) -> Option<f64> {
 #[test_case("1 - 1", Some(0.0); "basic integer subtracting")]
 #[test_case("2 * 3", Some(6.0); "basic integer multiplication")]
 #[test_case("6 / 3", Some(2.0); "basic integer division")]
+#[test_case("1 + 2 * 3 + 1", Some(8.0); "order of operations")]
+#[test_case("(1)", Some(1.0); "basic parenthetical")]
+#[test_case("1 + 1 * ((((50))))", Some(51.0); "order of operations with nested parens")]
 pub fn eval_test(text: &str, expected: Option<f64>) {
-    assert_eq!(eval_first(&calc_tokens(text)), expected)
+    assert_eq!(eval_text(text), expected)
 }
 
 pub fn int_seq() -> impl Sequence<Vec<&'static str>> {
