@@ -8,6 +8,21 @@ pub fn has_tag<'a>(tag: &'a str) -> impl Sequence<Vec<&str>> {
 pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     let mut tox = Token::token_vec_from_str(text, |_| vec![]);
 
+    let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+
+    replace_all_matches(
+        &MultipleSeq::new(vec![
+            Box::new(ChooseSeq::from_str(alphabet)),
+            Box::new(RepeatedSeq::new(
+                Box::new(ChooseSeq::from_str(alphabet))
+            ))
+        ]),
+        ShallowTransform {
+            data: vec!["word"],
+        },
+        &mut tox,
+    );
+
     replace_all_matches(
         &int_seq(),
         ShallowTransform {
@@ -59,6 +74,11 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         Box::new(RawSeq::new(")")),
     ]);
 
+    let call_seq = MultipleSeq::new(vec![
+        Box::new(has_tag("word")),
+        Box::new(has_tag("parens")),
+    ]);
+
     let md_seq = MultipleSeq::new(vec![
         Box::new(has_tag("expr")),
         Box::new(ChooseSeq::from_str("*/")),
@@ -76,6 +96,9 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     repeat_until_no_change(&[
         &|c| replace_all_matches(&paren_seq, 
             DeepTransform { data: vec!["parens", "expr"] }, 
+            c),
+        &|c| replace_all_matches(&call_seq,  
+            DeepTransform { data: vec!["call", "expr"] }, 
             c),
         &|c| replace_all_matches(&md_seq, 
             DeepTransform { data: vec!["oper", "expr"] }, 
@@ -122,6 +145,19 @@ pub fn eval(token: &Token<'_, Vec<&str>>) -> Option<f64> {
         }
     }
 
+    if token.data.contains(&"call") {
+        if let TokenType::Branch(children) = &token.t_type {
+            return match children.first()?.content() {
+                "sqrt" => Some(eval(children.get(1)?)?.sqrt()),
+                "abs" => Some(eval(children.get(1)?)?.abs()),
+                "ln" => Some(eval(children.get(1)?)?.ln()),
+                _ => None
+            };
+        } else {
+            return None;
+        }
+    }
+
     None
 }
 
@@ -154,6 +190,9 @@ pub fn eval_text(text: &str) -> Option<f64> {
 #[test_case("1 + 2 * 3 + 1", Some(8.0); "order of operations")]
 #[test_case("(1)", Some(1.0); "basic parenthetical")]
 #[test_case("1 + 1 * ((((50))))", Some(51.0); "order of operations with nested parens")]
+#[test_case("sqrt(1)", Some(1.0); "basic application")]
+#[test_case("sqrt(abs(ln(1)))", Some(0.0); "nested applications")]
+#[test_case("sqrt(abs(ln(1)", None; "no trailing end-parens")]
 pub fn eval_test(text: &str, expected: Option<f64>) {
     assert_eq!(eval_text(text), expected)
 }

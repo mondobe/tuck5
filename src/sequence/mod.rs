@@ -61,6 +61,7 @@ pub fn assert_match(seq: impl Sequence<()>, text: &str, should_match: bool) {
     );
 }
 
+#[derive(Clone)]
 pub struct RawSeq<T> {
     pub text: String,
     _t: PhantomData<T>,
@@ -85,6 +86,7 @@ impl<T> Sequence<T> for RawSeq<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct FirstTokenSeq<T, F>
 where
     F: Fn(&Token<'_, T>) -> bool,
