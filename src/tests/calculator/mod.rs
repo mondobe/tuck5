@@ -53,7 +53,28 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
             .is_some_and(|c| c.is_whitespace())
     });
 
+    let md_seq = MultipleSeq::new(vec![
+        Box::new(has_tag("expr")),
+        Box::new(ChooseSeq::from_str("*/")),
+        Box::new(has_tag("expr")),
+    ]);
+
+    let as_seq = MultipleSeq::new(vec![
+        Box::new(has_tag("expr")),
+        Box::new(ChooseSeq::from_str("+-")),
+        Box::new(has_tag("expr")),
+    ]);
+
     replace_all_matches(&whitespace_seq, RemoveTransform {}, &mut tox);
+
+    repeat_until_no_change(&[
+        &|c| replace_all_matches(&md_seq, 
+            DeepTransform { data: vec!["oper", "expr"] }, 
+            c),
+        &|c| replace_all_matches(&as_seq, 
+            DeepTransform { data: vec!["oper", "expr"] }, 
+            c)
+    ], &mut tox);
 
     tox
 }
@@ -70,6 +91,20 @@ pub fn eval(token: &Token<'_, Vec<&str>>) -> Option<f64> {
                 .parse()
                 .expect("f64 was recognized as correct but didn't parse in Rust"),
         );
+    }
+
+    if token.data.contains(&"oper") {
+        if let TokenType::Branch(children) = &token.t_type {
+            return match children.get(1)?.content() {
+                "+" => Some(eval(children.get(0)?)? + eval(children.get(2)?)?),
+                "-" => Some(eval(children.get(0)?)? - eval(children.get(2)?)?),
+                "*" => Some(eval(children.get(0)?)? * eval(children.get(2)?)?),
+                "/" => Some(eval(children.get(0)?)? / eval(children.get(2)?)?),
+                _ => None
+            };
+        } else {
+            return None;
+        }
     }
 
     None
@@ -89,6 +124,10 @@ pub fn eval_first(tokens: &Vec<Token<'_, Vec<&str>>>) -> Option<f64> {
 #[test_case("0", Some(0.0); "zero")]
 #[test_case("-1", Some(-1.0); "negative integer")]
 #[test_case("-123.0", Some(-123.0); "negative decimal")]
+#[test_case("1 + 1", Some(2.0); "basic integer addition")]
+#[test_case("1 - 1", Some(0.0); "basic integer subtracting")]
+#[test_case("2 * 3", Some(6.0); "basic integer multiplication")]
+#[test_case("6 / 3", Some(2.0); "basic integer division")]
 pub fn eval_test(text: &str, expected: Option<f64>) {
     assert_eq!(eval_first(&calc_tokens(text)), expected)
 }

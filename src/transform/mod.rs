@@ -55,12 +55,12 @@ impl<T> Transform<T> for RemoveTransform {
     }
 }
 
-pub fn repeat_until_no_change(mut func: Vec<Box<dyn FnMut() -> bool>>) -> bool {
+pub fn repeat_until_no_change<T>(func: &[&dyn Fn(&mut T) -> bool], carry_over: &mut T) -> bool {
     let mut changed = true;
     let mut changed_at_least_once = false;
     while changed {
         changed = false;
-        if func.iter_mut().any(|f| f()) {
+        if func.iter().any(|f| f(carry_over)) {
             changed = true;
             changed_at_least_once = true;
         }
