@@ -18,7 +18,7 @@ pub fn match_all_tokens<T>(seq: impl Sequence<T>, tokens: &[&Token<T>]) -> bool 
 
 pub fn test_and_transform<T>(
     seq: &dyn Sequence<T>,
-    transform: &impl Transform<T>,
+    transform: &dyn Transform<T>,
     tokens: &mut Vec<Token<'_, T>>,
     start_index: usize,
 ) -> Option<usize> {
@@ -36,13 +36,13 @@ pub fn test_and_transform<T>(
 
 pub fn replace_all_matches<T>(
     seq: &dyn Sequence<T>,
-    transform: impl Transform<T>,
+    transform: &dyn Transform<T>,
     tokens: &mut Vec<Token<'_, T>>,
 ) -> bool {
     let mut start_index = 0usize;
     let mut changed = false;
     while start_index < tokens.len() {
-        let inc = test_and_transform(seq, &transform, tokens, start_index);
+        let inc = test_and_transform(seq, transform, tokens, start_index);
         if let Some(match_size) = inc {
             start_index += match_size;
             changed = true;

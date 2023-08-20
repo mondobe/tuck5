@@ -13,19 +13,15 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     replace_all_matches(
         &MultipleSeq::new(vec![
             Box::new(ChooseSeq::from_str(alphabet)),
-            Box::new(RepeatedSeq::new(
-                Box::new(ChooseSeq::from_str(alphabet))
-            ))
+            Box::new(RepeatedSeq::new(Box::new(ChooseSeq::from_str(alphabet)))),
         ]),
-        ShallowTransform {
-            data: vec!["word"],
-        },
+        &ShallowTransform { data: vec!["word"] },
         &mut tox,
     );
 
     replace_all_matches(
         &int_seq(),
-        ShallowTransform {
+        &ShallowTransform {
             data: vec!["int", "positive", "number", "expr"],
         },
         &mut tox,
@@ -42,7 +38,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 
     replace_all_matches(
         &decimal_seq,
-        ShallowTransform {
+        &ShallowTransform {
             data: vec!["decimal", "positive", "number", "expr"],
         },
         &mut tox,
@@ -55,7 +51,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 
     replace_all_matches(
         &negative_seq,
-        DeepTransform {
+        &DeepTransform {
             data: vec!["negative", "number", "expr"],
         },
         &mut tox,
@@ -74,10 +70,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         Box::new(RawSeq::new(")")),
     ]);
 
-    let call_seq = MultipleSeq::new(vec![
-        Box::new(has_tag("word")),
-        Box::new(has_tag("parens")),
-    ]);
+    let call_seq = MultipleSeq::new(vec![Box::new(has_tag("word")), Box::new(has_tag("parens"))]);
 
     let md_seq = MultipleSeq::new(vec![
         Box::new(has_tag("expr")),
@@ -91,74 +84,95 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         Box::new(has_tag("expr")),
     ]);
 
-    replace_all_matches(&whitespace_seq, RemoveTransform {}, &mut tox);
+    replace_all_matches(&whitespace_seq, &RemoveTransform {}, &mut tox);
 
-    repeat_until_no_change(&[
-        &|c| replace_all_matches(&paren_seq, 
-            DeepTransform { data: vec!["parens", "expr"] }, 
-            c),
-        &|c| replace_all_matches(&call_seq,  
-            DeepTransform { data: vec!["call", "expr"] }, 
-            c),
-        &|c| replace_all_matches(&md_seq, 
-            DeepTransform { data: vec!["oper", "expr"] }, 
-            c),
-        &|c| replace_all_matches(&as_seq, 
-            DeepTransform { data: vec!["oper", "expr"] }, 
-            c)
-    ], &mut tox);
+    repeat_until_no_change(
+        &[
+            &|c| {
+                replace_all_matches(
+                    &paren_seq,
+                    &DeepTransform {
+                        data: vec!["parens", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &call_seq,
+                    &DeepTransform {
+                        data: vec!["call", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &md_seq,
+                    &DeepTransform {
+                        data: vec!["oper", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &as_seq,
+                    &DeepTransform {
+                        data: vec!["oper", "expr"],
+                    },
+                    c,
+                )
+            },
+        ],
+        &mut tox,
+    );
 
     tox
 }
 
 pub fn eval(token: &Token<'_, Vec<&str>>) -> Option<f64> {
     if !token.data.contains(&"expr") {
-        return None;
-    }
-
-    if token.data.contains(&"parens") {
+        None
+    } else if token.data.contains(&"parens") {
         if let TokenType::Branch(children) = &token.t_type {
-            return eval(children.get(1)?);
+            eval(children.get(1)?)
+        } else {
+            None
         }
-    }
-
-    if token.data.contains(&"number") {
-        return Some(
+    } else if token.data.contains(&"number") {
+        Some(
             token
                 .content()
                 .parse()
                 .expect("f64 was recognized as correct but didn't parse in Rust"),
-        );
-    }
-
-    if token.data.contains(&"oper") {
+        )
+    } else if token.data.contains(&"oper") {
         if let TokenType::Branch(children) = &token.t_type {
-            return match children.get(1)?.content() {
+            match children.get(1)?.content() {
                 "+" => Some(eval(children.get(0)?)? + eval(children.get(2)?)?),
                 "-" => Some(eval(children.get(0)?)? - eval(children.get(2)?)?),
                 "*" => Some(eval(children.get(0)?)? * eval(children.get(2)?)?),
                 "/" => Some(eval(children.get(0)?)? / eval(children.get(2)?)?),
-                _ => None
-            };
+                _ => None,
+            }
         } else {
-            return None;
+            None
         }
-    }
-
-    if token.data.contains(&"call") {
+    } else if token.data.contains(&"call") {
         if let TokenType::Branch(children) = &token.t_type {
-            return match children.first()?.content() {
+            match children.first()?.content() {
                 "sqrt" => Some(eval(children.get(1)?)?.sqrt()),
                 "abs" => Some(eval(children.get(1)?)?.abs()),
                 "ln" => Some(eval(children.get(1)?)?.ln()),
-                _ => None
-            };
+                _ => None,
+            }
         } else {
-            return None;
+            None
         }
+    } else {
+        None
     }
-
-    None
 }
 
 pub fn eval_first(tokens: &Vec<Token<'_, Vec<&str>>>) -> Option<f64> {
