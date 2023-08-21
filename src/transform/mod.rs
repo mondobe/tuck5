@@ -55,7 +55,7 @@ impl<T> Transform<T> for RemoveTransform {
     }
 }
 
-pub fn repeat_until_no_change<T>(func: &[&dyn Fn(&mut T) -> bool], carry_over: &mut T) -> bool {
+pub fn repeat_until_no_change<T>(func: &Vec<&dyn Fn(&mut T) -> bool>, carry_over: &mut T) -> bool {
     let mut changed = true;
     let mut changed_at_least_once = false;
     while changed {

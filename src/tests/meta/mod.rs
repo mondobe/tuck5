@@ -62,7 +62,7 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     ]);
 
     repeat_until_no_change(
-        &[&|c| {
+        &vec![&|c| {
             replace_all_matches(
                 &func_seq,
                 &DeepTransform {
@@ -373,7 +373,7 @@ pub struct SeqProg {
 impl SeqProg {
     fn execute(&self, tokens: &mut Vec<Token<Vec<String>>>) {
         for rt in &self.reps {
-            rt.execute(self, tokens)
+            rt.execute(self, tokens);
         }
     }
 }
@@ -403,22 +403,32 @@ pub enum RepTree {
 }
 
 impl RepTree {
-    pub fn execute(&self, prog: &SeqProg, tokens: &mut Vec<Token<Vec<String>>>) {
+    pub fn execute(&self, prog: &SeqProg, tokens: &mut Vec<Token<Vec<String>>>) -> bool {
         match self {
             RepTree::Branch(children) => {
-                for child in children {
-                    child.execute(prog, tokens);
+                let mut changed = true;
+                let mut changed_at_least_once = false;
+                while changed {
+                    changed = false;
+                    if children.iter().any(|f| f.execute(prog, tokens)) {
+                        changed = true;
+                        changed_at_least_once = true;
+                    }
                 }
+                changed_at_least_once
             },
             RepTree::Leaf(seq, trans) => {
-                replace_all_matches(seq.as_ref(), trans.as_ref(), tokens);
+                replace_all_matches(seq.as_ref(), trans.as_ref(), tokens)
             }
         }
     }
 }
 
 pub fn char_to_token(c: char) -> Vec<String> {
-    let mut to_ret = vec![c.to_string()];
+    let mut to_ret = vec![
+        c.to_string(),
+        "u".to_owned() + &(c as u32).to_string()
+    ];
 
     if c.is_whitespace() {
         to_ret.push("ws".to_string());
@@ -481,6 +491,7 @@ pub fn print_simple_prog(prog: &str) {
 }
 
 
+#[test_case("", "a"; "empty program")]
 #[test_case("
 raw(a). it_works;
 ", "a"; "basic raw sequence")]

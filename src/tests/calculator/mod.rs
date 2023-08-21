@@ -32,10 +32,8 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     let decimal_seq = MultipleSeq::new(vec![
         Box::new(has_tag("int")),
         Box::new(RawSeq::new(".")),
-        Box::new(ChooseSeq::from_str("0123456789")),
-        Box::new(RepeatedSeq::new(Box::new(ChooseSeq::from_str(
-            "0123456789",
-        )))),
+        Box::new(has_tag("int")),
+        Box::new(RepeatedSeq::new(Box::new(has_tag("int")))),
     ]);
 
     replace_all_matches(
@@ -89,7 +87,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     replace_all_matches(&whitespace_seq, &RemoveTransform {}, &mut tox);
 
     repeat_until_no_change(
-        &[
+        &vec![
             &|c| {
                 replace_all_matches(
                     &paren_seq,
@@ -196,6 +194,8 @@ pub fn eval_text(text: &str) -> Option<f64> {
 #[test_case("0101", None; "leading zero")]
 #[test_case("123", Some(123.0); "multiple-digit number")]
 #[test_case("123.0", Some(123.0); "multiple-digit number with decimal")]
+#[test_case("123.4567", Some(123.4567); "long decimal")]
+#[test_case("123.40070", Some(123.4007); "even longer decimal")]
 #[test_case("0", Some(0.0); "zero")]
 #[test_case("-1", Some(-1.0); "negative integer")]
 #[test_case("-123.0", Some(-123.0); "negative decimal")]

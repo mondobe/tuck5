@@ -8,18 +8,20 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<'a, Vec<String>>> {
         choose(has(alpha), raw(_)). letter;
         mult(has(letter), repeat(has(letter))). word;
         choose(
-            raw(1),
-            raw(2),
-            raw(3),
-            raw(4),
-            raw(5),
-            raw(6),
-            raw(7),
-            raw(8),
-            raw(9)
+            raw(1), raw(2), raw(3), raw(4), raw(5),
+            raw(6), raw(7), raw(8), raw(9)
         ). nonzero, digit;
         mult(has(nonzero), repeat(has(digit))). int, positive, number, expr;
         raw(0). int, positive, number, expr;
+        mult(has(int), has(u46), has(int), repeat(has(int))). decimal, positive, number, expr;
+        mult(raw(-), has(positive)): negative, number, expr;
+        has(ws)~;
+        {
+            mult(has(u40), has(expr), has(u41)): parens, expr;
+            mult(has(word), has(parens)): call, expr;
+            mult(has(expr), choose(has(u42), has(u47)), has(expr)): oper, expr;
+            mult(has(expr), choose(has(u43), has(u45)), has(expr)): oper, expr;
+        }
     ", text)
 }
 
