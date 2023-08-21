@@ -1,53 +1,24 @@
 use super::*;
 use test_case::test_case;
 
-#[test_case("
-'a' = raw(a)
-"; "basic raw sequence")]
-#[test_case("
-'c' = choose(raw(a), raw(b))
-"; "basic choose sequence")]
-#[test_case("
-'c' = choose(choose(raw(a)), raw(b))
-"; "basic recursive choose sequence")]
-#[test_case("
-'c' = opt(raw(a))
-"; "basic optional sequence")]
-#[test_case("
-'c' = repeat(raw(a))
-"; "basic repeated sequence")]
-#[test_case("
-'c' = mult(raw(a), raw(b))
-"; "basic multiple sequence")]
-pub fn print_simple_prog(prog: &str) {
-    let sp = prog_from_str(prog).unwrap();
-    dbg!(sp);
-}
-
-
 #[test_case("", "a"; "empty program")]
 #[test_case("
 raw(a). it_works;
 ", "a"; "basic raw sequence")]
 #[test_case("
-'c' = choose(raw(a), raw(b))
-'c'. chosen;
+choose(raw(a), raw(b)). chosen;
 ", "abac"; "basic choose sequence")]
 #[test_case("
-'c' = choose(choose(raw(a)), raw(b))
-'c'. chosen;
+choose(choose(raw(a)), raw(b)). chosen;
 ", "abac"; "basic recursive choose sequence")]
 #[test_case("
-'c' = mult(raw(a), raw(b))
-'c'. seq;
+mult(raw(a), raw(b)). seq;
 ", "abac"; "basic multiple sequence")]
 #[test_case("
-'c' = mult(raw(a), opt(raw(b)))
-'c'. seq;
+mult(raw(a), opt(raw(b))). seq;
 ", "abac"; "basic optional sequence")]
 #[test_case("
-'c' = mult(raw(a), repeat(raw(b)))
-'c'. seq;
+mult(raw(a), repeat(raw(b))). seq;
 ", "ababbbbac"; "basic repeated sequence")]
 #[test_case("
 raw(a). foo;
@@ -62,6 +33,32 @@ mult(raw(a), raw(b)). ab;
 #[test_case("
 raw(a). foo, bar;
 ", "a"; "more than one tag")]
+#[test_case("
+raw(a). foo;
+raw(b). bar;
+foo & bar: baz;
+", "baab"; "sugared has_tag sequence")]
+#[test_case("
+'a'. it_works;
+", "a"; "sugared raw sequence")]
+#[test_case("
+a..c. it_works;
+", "abcd"; "sugared range sequence")]
+#[test_case("
+a+. it_works;
+", "a"; "sugared one or more sequence")]
+#[test_case("
+# pre-comment
+raw(a) # inline comment
+. it_works;
+", "a"; "comments")]
+#[test_case("
+## pre-comment with misleading code
+'a'. b;
+##
+raw(a) ## inline comment ##
+. it_works;
+", "a"; "long comments")]
 pub fn eval_simple_prog(prog: &str, text: &str) {
     graph_with_tags(&eval_prog_from_text(prog, text));
 }
