@@ -16,12 +16,12 @@ pub enum TokenType<'a, T> {
 }
 
 impl<'a, T> Token<'a, T> {
-    pub fn token_vec_from_str(from: &'a str, data: impl Fn(char) -> T) -> Vec<Token<'a, T>> {
+    pub fn token_vec_from_str(from: &'a str, data: impl Fn(&'a str, usize) -> T) -> Vec<Token<'a, T>> {
         (0..from.len())
             .map(|i| Token {
                 t_type: TokenType::Leaf(i..i + 1),
                 root: from,
-                data: data(from.chars().nth(i).unwrap_or_default()),
+                data: data(from, i),
             })
             .collect::<Vec<Token<T>>>()
     }

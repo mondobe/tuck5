@@ -8,7 +8,7 @@ pub fn has_tag<'a>(tag: &'a str) -> impl Sequence<Vec<&str>> {
 }
 
 pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
-    let mut tox = Token::token_vec_from_str(text, |_| vec![]);
+    let mut tox = Token::token_vec_from_str(text, |_, _| vec![]);
 
     let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 
@@ -230,10 +230,10 @@ pub fn int_seq() -> impl Sequence<Vec<&'static str>> {
 #[test_case("0", true; "special case")]
 #[test_case("01", false; "leading zero")]
 pub fn int_test(text: &str, should_match: bool) {
-    let tox = Token::token_vec_from_str(text, &|_| vec![]);
+    let tox = Token::token_vec_from_str(text, &|_, _| vec![]);
     assert_eq!(
         match_all_tokens(
-            int_seq(),
+            &int_seq(),
             tox.iter().collect::<Vec<&Token<Vec<&str>>>>().as_slice()
         ),
         should_match

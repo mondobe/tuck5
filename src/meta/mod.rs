@@ -20,7 +20,7 @@ pub fn raw_range<'a>(s: u32, e: u32) -> impl Sequence<Vec<String>> {
 }
 
 pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
-    let mut tox = Token::token_vec_from_str(text, |_| vec![]);
+    let mut tox = Token::token_vec_from_str(text, |_, _| vec![]);
 
     replace_all_matches(
         &MultipleSeq::new(vec![
@@ -47,6 +47,34 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
             Box::new(RawSeq::new("#")),
         ]),
         &RemoveTransform { },
+        &mut tox,
+    );
+
+    replace_all_matches(
+        &MultipleSeq::new(vec![
+            Box::new(RawSeq::new("#")),
+            Box::new(RepeatedSeq::new(
+                Box::new(FirstTokenSeq::new(|t| t.content() != "\n")),
+            )),
+            Box::new(RawSeq::new("\n")),
+        ]),
+        &RemoveTransform { },
+        &mut tox,
+    );
+
+    replace_all_matches(
+        &MultipleSeq::new(vec![
+            Box::new(RawSeq::new("{")),
+            Box::new(RawSeq::new(".")),
+            Box::new(RepeatedSeq::new(
+                Box::new(FirstTokenSeq::new(|t| t.content() != ".")),
+            )),
+            Box::new(RawSeq::new(".")),
+            Box::new(RawSeq::new("}")),
+        ]),
+        &ShallowTransform {
+            data: vec!["quote", "expr"],
+        },
         &mut tox,
     );
 
@@ -84,17 +112,6 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     });
 
     replace_all_matches(&whitespace_seq, &RemoveTransform {}, &mut tox);
-
-    let func_seq = MultipleSeq::new(vec![
-        Box::new(OptionalSeq::new(Box::new(has_tag("word")))),
-        Box::new(RawSeq::new("(")),
-        Box::new(RepeatedSeq::new(Box::new(MultipleSeq::new(vec![
-            Box::new(has_tag("expr")),
-            Box::new(RawSeq::new(",")),
-        ])))),
-        Box::new(has_tag("expr")),
-        Box::new(RawSeq::new(")")),
-    ]);
 
     let opt_seq = MultipleSeq::new(vec![
         Box::new(has_tag("expr")),
@@ -151,13 +168,6 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
                 &one_or_more_seq,
                 &DeepTransform {
                     data: vec!["one_or_more", "expr"],
-                },
-                c,
-            )},
-            &|c| { replace_all_matches(
-                &func_seq,
-                &DeepTransform {
-                    data: vec!["func", "expr"],
                 },
                 c,
             )},
@@ -273,7 +283,7 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
             if token.data.contains(&"rep_remove") {
                 if let Some(seq) = eval_sequence(&children[0]) {
                     return Some(RepTree::Leaf(
-                        seq.resolve(prog),
+                        seq,
                         Box::new(RemoveTransform {})
                     ))
                 } else {
@@ -292,7 +302,7 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
             if let Some(seq) = eval_sequence(&children[0]) {
                 if token.data.contains(&"rep_deep") {
                     Some(RepTree::Leaf(
-                        seq.resolve(prog),
+                        seq,
                         Box::new(DeepTransform {
                             data: new_tag_tokens.iter().map(|t| 
                                 t.content().to_owned()).collect()
@@ -300,7 +310,7 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
                     ))
                 } else if token.data.contains(&"rep_shallow") {
                     Some(RepTree::Leaf(
-                        seq.resolve(prog),
+                        seq,
                         Box::new(ShallowTransform {
                             data: new_tag_tokens.iter().map(|t| 
                                 t.content().to_owned()).collect()
@@ -330,66 +340,8 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
     }
 }
 
-pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<DefinedSeq> {
-    if token.data.contains(&"func") {
-        if let TokenType::Branch(children) = &token.t_type {
-            if !children[0].data.contains(&"word") {
-                return eval_sequence(children.get(1)?);
-            }
-
-            let mut paren_exprs = vec![];
-            for i in 0usize.. {
-                let paren_index = 2 + 2 * i;
-                if paren_index >= children.len() {
-                    break;
-                }
-                paren_exprs.push(&children[paren_index]);
-            }
-            match children[0].content().to_lowercase().as_str() {
-                "raw" => Some(DefinedSeq::Raw(paren_exprs[0].content().to_owned())),
-                "choose" => Some(DefinedSeq::Choose(
-                    paren_exprs
-                        .iter()
-                        .map(|e| {
-                            Some(match eval_sequence(&e) {
-                                Some(ds) => ds,
-                                _ => {
-                                    return None;
-                                }
-                            })
-                        })
-                        .map(|o| o.unwrap())
-                        .collect(),
-                )),
-                "opt" => Some(DefinedSeq::Optional(
-                    Box::new(eval_sequence(paren_exprs.get(0)?)?)
-                )),
-                "repeat" => Some(DefinedSeq::Repeat(
-                    Box::new(eval_sequence(paren_exprs.get(0)?)?)
-                )),
-                "mult" => Some(DefinedSeq::Multiple(
-                    paren_exprs
-                        .iter()
-                        .map(|e| {
-                            Some(match eval_sequence(&e) {
-                                Some(ds) => ds,
-                                _ => {
-                                    return None;
-                                }
-                            })
-                        })
-                        .map(|o| o.unwrap())
-                        .collect(),
-                )),
-                "has" => Some(DefinedSeq::HasTag(
-                    paren_exprs.get(0)?.content().to_owned()
-                )),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    } else if token.data.contains(&"mult") {
+pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<Box<dyn Sequence<Vec<String>>>> {
+    if token.data.contains(&"mult") {
         if let TokenType::Branch(children) = &token.t_type {
             let mut paren_exprs = vec![];
             for i in 0usize.. {
@@ -399,7 +351,7 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<DefinedSeq> {
                 }
                 paren_exprs.push(&children[paren_index]);
             }
-            Some(DefinedSeq::Multiple(paren_exprs.iter()
+            Some(Box::new(MultipleSeq::new(paren_exprs.iter()
                 .map(|e| {
                     Some(match eval_sequence(&e) {
                         Some(ds) => ds,
@@ -410,7 +362,7 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<DefinedSeq> {
                 })
                 .map(|o| o.unwrap())
                 .collect()
-            ))
+            )))
         } else {
             None
         }
@@ -424,7 +376,7 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<DefinedSeq> {
                 }
                 paren_exprs.push(&children[paren_index]);
             }
-            Some(DefinedSeq::Choose(paren_exprs.iter()
+            Some(Box::new(ChooseSeq::new(paren_exprs.iter()
                 .map(|e| {
                     Some(match eval_sequence(&e) {
                         Some(ds) => ds,
@@ -435,46 +387,51 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<DefinedSeq> {
                 })
                 .map(|o| o.unwrap())
                 .collect()
-            ))
+            )))
         } else {
             None
         }
     } else if token.data.contains(&"opt") {
         if let TokenType::Branch(children) = &token.t_type {
-            Some(DefinedSeq::Optional(
-                Box::new(eval_sequence(children.get(0)?)?)
-            ))
+            Some(Box::new(OptionalSeq::new(
+                eval_sequence(children.get(0)?)?
+            )))
         } else {
             None
         }
     } else if token.data.contains(&"repeat") {
         if let TokenType::Branch(children) = &token.t_type {
-            Some(DefinedSeq::Repeat(
-                Box::new(eval_sequence(children.get(0)?)?)
-            ))
+            Some(Box::new(RepeatedSeq::new(
+                eval_sequence(children.get(0)?)?
+            )))
         } else {
             None
         }
     } else if token.data.contains(&"one_or_more") {
         if let TokenType::Branch(children) = &token.t_type {
-            Some(DefinedSeq::Multiple(vec![
+            Some(Box::new(MultipleSeq::new(vec![
                 eval_sequence(children.get(0)?)?,
-                DefinedSeq::Repeat(
-                    Box::new(eval_sequence(children.get(0)?)?)
-                )
-            ]))
+                Box::new(RepeatedSeq::new(
+                    eval_sequence(children.get(0)?)?
+                ))
+            ])))
         } else {
             None
         }
     } else if token.data.contains(&"raw") {
-        Some(DefinedSeq::Raw(token.content()[1..token.content().len() - 1].to_string()))
+        Some(Box::new(RawSeq::new(&token.content()[1..token.content().len() - 1])))
+    } else if token.data.contains(&"quote") {
+        Some(Box::new(MultipleSeq::new(token.content()[2..token.content().len() - 2]
+            .chars().map(|c| 
+                Box::new(RawSeq::new(&c.to_string())) as Box<dyn Sequence<Vec<String>>>
+            ).collect())))
     } else if token.data.contains(&"range") {
-        Some(DefinedSeq::Range(
+        Some(Box::new(raw_range(
             token.content().chars().nth(0)? as u32,
             token.content().chars().nth(3)? as u32,
-        ))
+        )))
     } else if token.data.contains(&"word") {
-        Some(DefinedSeq::HasTag(token.content().to_string()))
+        Some(Box::new(has_tag_owned(token.content().to_string())))
     } else {
         None
     }
@@ -636,7 +593,8 @@ pub fn prog_from_str(text: &str) -> Option<SeqProg> {
 
 pub fn eval_prog_from_text<'a>(prog: &str, text: &'a str) -> Vec<Token<'a, Vec<String>>> {
     let sp = prog_from_str(prog).unwrap();
-    let mut tox = Token::token_vec_from_str(text, |c| char_to_token(c));
+    let mut tox = Token::token_vec_from_str(text, 
+        |r, i| char_to_token(r.chars().nth(i).unwrap()));
     sp.execute(&mut tox);
     tox
 }

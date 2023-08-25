@@ -12,7 +12,7 @@ pub trait Sequence<T> {
     fn match_tokens(&self, tokens: &[&Token<T>]) -> Option<usize>;
 }
 
-pub fn match_all_tokens<T>(seq: impl Sequence<T>, tokens: &[&Token<T>]) -> bool {
+pub fn match_all_tokens<T>(seq: &impl Sequence<T>, tokens: &[&Token<T>]) -> bool {
     Some(tokens.len()) == seq.match_tokens(tokens)
 }
 
@@ -54,9 +54,9 @@ pub fn replace_all_matches<T>(
 }
 
 pub fn assert_match(seq: impl Sequence<()>, text: &str, should_match: bool) {
-    let tox = Token::token_vec_from_str(text, &|_| ());
+    let tox = Token::token_vec_from_str(text, &|_, _| ());
     assert_eq!(
-        match_all_tokens(seq, tox.iter().collect::<Vec<&Token<()>>>().as_slice()),
+        match_all_tokens(&seq, tox.iter().collect::<Vec<&Token<()>>>().as_slice()),
         should_match
     );
 }
@@ -69,6 +69,13 @@ pub struct RawSeq<T> {
 
 impl<T> RawSeq<T> {
     pub fn new(text: &str) -> RawSeq<T> {
+        RawSeq {
+            text: text.to_string(),
+            _t: PhantomData,
+        }
+    }
+    
+    pub fn new_from_owned(text: String) -> RawSeq<T> {
         RawSeq {
             text: text.to_string(),
             _t: PhantomData,
@@ -133,7 +140,7 @@ impl<T: 'static> ChooseSeq<T> {
         ChooseSeq {
             options: text
                 .chars()
-                .map(|c| Box::new(RawSeq::new(&format!("{c}"))) as Box<dyn Sequence<T>>)
+                .map(|c| Box::new(RawSeq::new_from_owned(format!("{c}"))) as Box<dyn Sequence<T>>)
                 .collect(),
         }
     }

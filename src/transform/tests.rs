@@ -11,7 +11,7 @@ pub use transform::*;
 #[test_case("", ""; "no letters")]
 pub fn remove_a_test(text: &str, expected: &str) {
     let seq = RawSeq::new("a");
-    let tox = &mut Token::token_vec_from_str(text, |_| ());
+    let tox = &mut Token::token_vec_from_str(text, |_, _| ());
     let trans = RemoveTransform {};
     replace_all_matches(&seq, &trans, tox);
     assert_eq!(expected, Token::vec_content(tox));

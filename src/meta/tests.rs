@@ -59,6 +59,9 @@ raw(a) # inline comment
 raw(a) ## inline comment ##
 . it_works;
 ", "a"; "long comments")]
+#[test_case("
+{.quote.}. quote;
+", "quotea"; "quotes")]
 pub fn eval_simple_prog(prog: &str, text: &str) {
     graph_with_tags(&eval_prog_from_text(prog, text));
 }

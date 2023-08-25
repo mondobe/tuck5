@@ -1,4 +1,4 @@
-use crate::tests::meta::eval_prog_from_text;
+use crate::meta::eval_prog_from_text;
 
 use super::*;
 use test_case::test_case;
@@ -117,31 +117,4 @@ pub fn eval_text(text: &str) -> Option<f64> {
 #[test_case("sqrt(abs(ln(1)", None; "no trailing end-parens")]
 pub fn eval_test(text: &str, expected: Option<f64>) {
     assert_eq!(eval_text(text), expected)
-}
-
-pub fn int_seq() -> impl Sequence<Vec<&'static str>> {
-    let nonzero_digit = ChooseSeq::from_str("123456789");
-    let digit = ChooseSeq::from_str("0123456789");
-    ChooseSeq::new(vec![
-        Box::new(MultipleSeq::new(vec![
-            Box::new(nonzero_digit),
-            Box::new(RepeatedSeq::new(Box::new(digit))),
-        ])),
-        Box::new(RawSeq::new("0")),
-    ])
-}
-
-#[test_case("1", true; "one-digit int")]
-#[test_case("1234567890", true; "all digits")]
-#[test_case("0", true; "special case")]
-#[test_case("01", false; "leading zero")]
-pub fn int_test(text: &str, should_match: bool) {
-    let tox = Token::token_vec_from_str(text, &|_| vec![]);
-    assert_eq!(
-        match_all_tokens(
-            int_seq(),
-            tox.iter().collect::<Vec<&Token<Vec<&str>>>>().as_slice()
-        ),
-        should_match
-    );
 }
