@@ -20,7 +20,7 @@ pub fn raw_range<'a>(s: u32, e: u32) -> impl Sequence<Vec<String>> {
             .chars()
             .next()
             .is_some_and(|c| (s..=e).contains(&(c as u32)))
-        && tok.content().len() == 1
+            && tok.content().len() == 1
     })
 }
 

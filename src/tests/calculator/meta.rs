@@ -115,6 +115,7 @@ pub fn eval_text(text: &str) -> Option<f64> {
 #[test_case("1 + 2 * 3 + 1", Some(8.0); "order of operations")]
 #[test_case("(1)", Some(1.0); "basic parenthetical")]
 #[test_case("1 + 1 * ((((50))))", Some(51.0); "order of operations with nested parens")]
+#[test_case("((((50)))) * 1 + 1", Some(51.0); "order of operations with nested parens, backwards")]
 #[test_case("sqrt(1)", Some(1.0); "basic application")]
 #[test_case("sqrt(abs(ln(1)))", Some(0.0); "nested applications")]
 #[test_case("sqrt(abs(ln(1)", None; "no trailing end-parens")]
