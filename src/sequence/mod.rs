@@ -74,7 +74,7 @@ impl<T> RawSeq<T> {
             _t: PhantomData,
         }
     }
-    
+
     pub fn new_from_owned(text: String) -> RawSeq<T> {
         RawSeq {
             text: text.to_string(),

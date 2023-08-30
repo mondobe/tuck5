@@ -1,7 +1,7 @@
 use super::*;
 use sequence::*;
-use transform::*;
 use std::fmt::{Debug, Display, Formatter};
+use transform::*;
 
 #[cfg(test)]
 mod tests;
@@ -15,8 +15,13 @@ pub fn has_tag_owned<'a>(tag: String) -> impl Sequence<Vec<String>> {
 }
 
 pub fn raw_range<'a>(s: u32, e: u32) -> impl Sequence<Vec<String>> {
-    FirstTokenSeq::new(move |tok: &Token<'_, Vec<String>>| tok.content()
-        .chars().next().is_some_and(|c| (s..=e).contains(&(c as u32))))
+    FirstTokenSeq::new(move |tok: &Token<'_, Vec<String>>| {
+        tok.content()
+            .chars()
+            .next()
+            .is_some_and(|c| (s..=e).contains(&(c as u32)))
+        && tok.content().len() == 1
+    })
 }
 
 pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
@@ -25,9 +30,9 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     replace_all_matches(
         &MultipleSeq::new(vec![
             Box::new(RawSeq::new("'")),
-            Box::new(RepeatedSeq::new(
-                Box::new(FirstTokenSeq::new(|t| t.content() != "'")))
-            ),
+            Box::new(RepeatedSeq::new(Box::new(FirstTokenSeq::new(|t| {
+                t.content() != "'"
+            })))),
             Box::new(RawSeq::new("'")),
         ]),
         &ShallowTransform {
@@ -40,25 +45,25 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         &MultipleSeq::new(vec![
             Box::new(RawSeq::new("#")),
             Box::new(RawSeq::new("#")),
-            Box::new(RepeatedSeq::new(
-                Box::new(FirstTokenSeq::new(|t| t.content() != "#")),
-            )),
+            Box::new(RepeatedSeq::new(Box::new(FirstTokenSeq::new(|t| {
+                t.content() != "#"
+            })))),
             Box::new(RawSeq::new("#")),
             Box::new(RawSeq::new("#")),
         ]),
-        &RemoveTransform { },
+        &RemoveTransform {},
         &mut tox,
     );
 
     replace_all_matches(
         &MultipleSeq::new(vec![
             Box::new(RawSeq::new("#")),
-            Box::new(RepeatedSeq::new(
-                Box::new(FirstTokenSeq::new(|t| t.content() != "\n")),
-            )),
+            Box::new(RepeatedSeq::new(Box::new(FirstTokenSeq::new(|t| {
+                t.content() != "\n"
+            })))),
             Box::new(RawSeq::new("\n")),
         ]),
-        &RemoveTransform { },
+        &RemoveTransform {},
         &mut tox,
     );
 
@@ -66,9 +71,9 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         &MultipleSeq::new(vec![
             Box::new(RawSeq::new("{")),
             Box::new(RawSeq::new(".")),
-            Box::new(RepeatedSeq::new(
-                Box::new(FirstTokenSeq::new(|t| t.content() != ".")),
-            )),
+            Box::new(RepeatedSeq::new(Box::new(FirstTokenSeq::new(|t| {
+                t.content() != "."
+            })))),
             Box::new(RawSeq::new(".")),
             Box::new(RawSeq::new("}")),
         ]),
@@ -113,20 +118,12 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 
     replace_all_matches(&whitespace_seq, &RemoveTransform {}, &mut tox);
 
-    let opt_seq = MultipleSeq::new(vec![
-        Box::new(has_tag("expr")),
-        Box::new(RawSeq::new("?")),
-    ]);
+    let opt_seq = MultipleSeq::new(vec![Box::new(has_tag("expr")), Box::new(RawSeq::new("?"))]);
 
-    let repeat_seq = MultipleSeq::new(vec![
-        Box::new(has_tag("expr")),
-        Box::new(RawSeq::new("*")),
-    ]);
+    let repeat_seq = MultipleSeq::new(vec![Box::new(has_tag("expr")), Box::new(RawSeq::new("*"))]);
 
-    let one_or_more_seq = MultipleSeq::new(vec![
-        Box::new(has_tag("expr")),
-        Box::new(RawSeq::new("+")),
-    ]);
+    let one_or_more_seq =
+        MultipleSeq::new(vec![Box::new(has_tag("expr")), Box::new(RawSeq::new("+"))]);
 
     let mult_seq = MultipleSeq::new(vec![
         Box::new(has_tag("expr")),
@@ -150,41 +147,51 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 
     repeat_until_no_change(
         &vec![
-            &|c| { replace_all_matches(
-                &opt_seq,
-                &DeepTransform {
-                    data: vec!["opt", "expr"],
-                },
-                c,
-            )},
-            &|c| { replace_all_matches(
-                &repeat_seq,
-                &DeepTransform {
-                    data: vec!["repeat", "expr"],
-                },
-                c,
-            )},
-            &|c| { replace_all_matches(
-                &one_or_more_seq,
-                &DeepTransform {
-                    data: vec!["one_or_more", "expr"],
-                },
-                c,
-            )},
-            &|c| { replace_all_matches(
-                &choose_seq,
-                &DeepTransform {
-                    data: vec!["choose", "expr"],
-                },
-                c,
-            )},
-            &|c| { replace_all_matches(
-                &mult_seq,
-                &DeepTransform {
-                    data: vec!["mult", "expr"],
-                },
-                c,
-            )},
+            &|c| {
+                replace_all_matches(
+                    &opt_seq,
+                    &DeepTransform {
+                        data: vec!["opt", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &repeat_seq,
+                    &DeepTransform {
+                        data: vec!["repeat", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &one_or_more_seq,
+                    &DeepTransform {
+                        data: vec!["one_or_more", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &choose_seq,
+                    &DeepTransform {
+                        data: vec!["choose", "expr"],
+                    },
+                    c,
+                )
+            },
+            &|c| {
+                replace_all_matches(
+                    &mult_seq,
+                    &DeepTransform {
+                        data: vec!["mult", "expr"],
+                    },
+                    c,
+                )
+            },
         ],
         &mut tox,
     );
@@ -210,10 +217,8 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         &mut tox,
     );
 
-    let rep_remove_seq = MultipleSeq::new(vec![
-        Box::new(has_tag("expr")),
-        Box::new(RawSeq::new("~")),
-    ]);
+    let rep_remove_seq =
+        MultipleSeq::new(vec![Box::new(has_tag("expr")), Box::new(RawSeq::new("~"))]);
 
     replace_all_matches(
         &rep_remove_seq,
@@ -246,9 +251,7 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 
     let rep_branch_seq = MultipleSeq::new(vec![
         Box::new(RawSeq::new("{")),
-        Box::new(RepeatedSeq::new(
-            Box::new(has_tag("rep")),
-        )),
+        Box::new(RepeatedSeq::new(Box::new(has_tag("rep")))),
         Box::new(RawSeq::new("}")),
     ]);
 
@@ -264,9 +267,7 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 }
 
 pub fn create_program<'a>(tokens: Vec<Token<'a, Vec<&'a str>>>) -> Option<SeqProg> {
-    let mut prog = SeqProg {
-        reps: vec![],
-    };
+    let mut prog = SeqProg { reps: vec![] };
 
     for token in tokens {
         if token.data.contains(&"rep") {
@@ -282,10 +283,7 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
         if let TokenType::Branch(children) = &token.t_type {
             if token.data.contains(&"rep_remove") {
                 if let Some(seq) = eval_sequence(&children[0]) {
-                    return Some(RepTree::Leaf(
-                        seq,
-                        Box::new(RemoveTransform {})
-                    ))
+                    return Some(RepTree::Leaf(seq, Box::new(RemoveTransform {})));
                 } else {
                     return None;
                 }
@@ -304,17 +302,21 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
                     Some(RepTree::Leaf(
                         seq,
                         Box::new(DeepTransform {
-                            data: new_tag_tokens.iter().map(|t| 
-                                t.content().to_owned()).collect()
-                        })
+                            data: new_tag_tokens
+                                .iter()
+                                .map(|t| t.content().to_owned())
+                                .collect(),
+                        }),
                     ))
                 } else if token.data.contains(&"rep_shallow") {
                     Some(RepTree::Leaf(
                         seq,
                         Box::new(ShallowTransform {
-                            data: new_tag_tokens.iter().map(|t| 
-                                t.content().to_owned()).collect()
-                        })
+                            data: new_tag_tokens
+                                .iter()
+                                .map(|t| t.content().to_owned())
+                                .collect(),
+                        }),
                     ))
                 } else {
                     None
@@ -327,11 +329,18 @@ pub fn eval_rep(token: &Token<Vec<&str>>, prog: &SeqProg) -> Option<RepTree> {
         }
     } else if token.data.contains(&"rep_branch") {
         if let TokenType::Branch(children) = &token.t_type {
-            Some(RepTree::Branch(children[1..children.len() - 1].iter().map(|t| 
-                match eval_rep(t, prog) {
-                    Some(rt) => Some(rt),
-                    None => { return None; }
-                }).map(|o| o.unwrap()).collect()))
+            Some(RepTree::Branch(
+                children[1..children.len() - 1]
+                    .iter()
+                    .map(|t| match eval_rep(t, prog) {
+                        Some(rt) => Some(rt),
+                        None => {
+                            return None;
+                        }
+                    })
+                    .map(|o| o.unwrap())
+                    .collect(),
+            ))
         } else {
             None
         }
@@ -351,17 +360,19 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<Box<dyn Sequence<Vec<St
                 }
                 paren_exprs.push(&children[paren_index]);
             }
-            Some(Box::new(MultipleSeq::new(paren_exprs.iter()
-                .map(|e| {
-                    Some(match eval_sequence(&e) {
-                        Some(ds) => ds,
-                        _ => {
-                            return None;
-                        }
+            Some(Box::new(MultipleSeq::new(
+                paren_exprs
+                    .iter()
+                    .map(|e| {
+                        Some(match eval_sequence(&e) {
+                            Some(ds) => ds,
+                            _ => {
+                                return None;
+                            }
+                        })
                     })
-                })
-                .map(|o| o.unwrap())
-                .collect()
+                    .map(|o| o.unwrap())
+                    .collect(),
             )))
         } else {
             None
@@ -376,34 +387,32 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<Box<dyn Sequence<Vec<St
                 }
                 paren_exprs.push(&children[paren_index]);
             }
-            Some(Box::new(ChooseSeq::new(paren_exprs.iter()
-                .map(|e| {
-                    Some(match eval_sequence(&e) {
-                        Some(ds) => ds,
-                        _ => {
-                            return None;
-                        }
+            Some(Box::new(ChooseSeq::new(
+                paren_exprs
+                    .iter()
+                    .map(|e| {
+                        Some(match eval_sequence(&e) {
+                            Some(ds) => ds,
+                            _ => {
+                                return None;
+                            }
+                        })
                     })
-                })
-                .map(|o| o.unwrap())
-                .collect()
+                    .map(|o| o.unwrap())
+                    .collect(),
             )))
         } else {
             None
         }
     } else if token.data.contains(&"opt") {
         if let TokenType::Branch(children) = &token.t_type {
-            Some(Box::new(OptionalSeq::new(
-                eval_sequence(children.get(0)?)?
-            )))
+            Some(Box::new(OptionalSeq::new(eval_sequence(children.get(0)?)?)))
         } else {
             None
         }
     } else if token.data.contains(&"repeat") {
         if let TokenType::Branch(children) = &token.t_type {
-            Some(Box::new(RepeatedSeq::new(
-                eval_sequence(children.get(0)?)?
-            )))
+            Some(Box::new(RepeatedSeq::new(eval_sequence(children.get(0)?)?)))
         } else {
             None
         }
@@ -411,20 +420,22 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<Box<dyn Sequence<Vec<St
         if let TokenType::Branch(children) = &token.t_type {
             Some(Box::new(MultipleSeq::new(vec![
                 eval_sequence(children.get(0)?)?,
-                Box::new(RepeatedSeq::new(
-                    eval_sequence(children.get(0)?)?
-                ))
+                Box::new(RepeatedSeq::new(eval_sequence(children.get(0)?)?)),
             ])))
         } else {
             None
         }
     } else if token.data.contains(&"raw") {
-        Some(Box::new(RawSeq::new(&token.content()[1..token.content().len() - 1])))
+        Some(Box::new(RawSeq::new(
+            &token.content()[1..token.content().len() - 1],
+        )))
     } else if token.data.contains(&"quote") {
-        Some(Box::new(MultipleSeq::new(token.content()[2..token.content().len() - 2]
-            .chars().map(|c| 
-                Box::new(RawSeq::new(&c.to_string())) as Box<dyn Sequence<Vec<String>>>
-            ).collect())))
+        Some(Box::new(MultipleSeq::new(
+            token.content()[2..token.content().len() - 2]
+                .chars()
+                .map(|c| Box::new(RawSeq::new(&c.to_string())) as Box<dyn Sequence<Vec<String>>>)
+                .collect(),
+        )))
     } else if token.data.contains(&"range") {
         Some(Box::new(raw_range(
             token.content().chars().nth(0)? as u32,
@@ -455,21 +466,21 @@ impl Display for DefinedSeq {
             DefinedSeq::Choose(options) => {
                 write!(f, "choose(")?;
                 options.iter().for_each(|o| match write!(f, "{o},") {
-                    Ok(()) => {},
+                    Ok(()) => {}
                     Err(_) => {}
                 });
                 write!(f, ")")
-            },
+            }
             DefinedSeq::Optional(d) => write!(f, "opt({})", d.to_string()),
             DefinedSeq::Repeat(d) => write!(f, "repeat({})", d.to_string()),
             DefinedSeq::Multiple(options) => {
                 write!(f, "mult(")?;
                 options.iter().for_each(|o| match write!(f, "{o},") {
-                    Ok(()) => {},
+                    Ok(()) => {}
                     Err(_) => {}
                 });
                 write!(f, ")")
-            },
+            }
             DefinedSeq::HasTag(s) => write!(f, "has({s})"),
         }
     }
@@ -483,18 +494,12 @@ impl DefinedSeq {
             DefinedSeq::Choose(options) => Box::new(ChooseSeq::new(
                 options.iter().map(|d| d.resolve(prog)).collect(),
             )),
-            DefinedSeq::Optional(d) => Box::new(OptionalSeq::new(
-                d.resolve(prog)
-            )),
-            DefinedSeq::Repeat(d) => Box::new(RepeatedSeq::new(
-                d.resolve(prog)
-            )),
+            DefinedSeq::Optional(d) => Box::new(OptionalSeq::new(d.resolve(prog))),
+            DefinedSeq::Repeat(d) => Box::new(RepeatedSeq::new(d.resolve(prog))),
             DefinedSeq::Multiple(options) => Box::new(MultipleSeq::new(
                 options.iter().map(|d| d.resolve(prog)).collect(),
             )),
-            DefinedSeq::HasTag(s) => Box::new(
-                has_tag_owned(s.to_owned())
-            ),
+            DefinedSeq::HasTag(s) => Box::new(has_tag_owned(s.to_owned())),
         }
     }
 }
@@ -513,11 +518,15 @@ impl SeqProg {
 
 impl Display for SeqProg {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{}",
-            self.reps.iter()
-            .map(|rt| format!("{rt}"))
-            .reduce(|acc, i| acc + &i)
-            .unwrap_or(String::new()))
+        write!(
+            fmt,
+            "{}",
+            self.reps
+                .iter()
+                .map(|rt| format!("{rt}"))
+                .reduce(|acc, i| acc + &i)
+                .unwrap_or(String::new())
+        )
     }
 }
 
@@ -528,8 +537,10 @@ impl Debug for SeqProg {
 }
 
 pub enum RepTree {
-    Leaf(Box<dyn Sequence<Vec<String>>>, 
-        Box<dyn Transform<Vec<String>>>),
+    Leaf(
+        Box<dyn Sequence<Vec<String>>>,
+        Box<dyn Transform<Vec<String>>>,
+    ),
     Branch(Vec<RepTree>),
 }
 
@@ -547,10 +558,8 @@ impl RepTree {
                     }
                 }
                 changed_at_least_once
-            },
-            RepTree::Leaf(seq, trans) => {
-                replace_all_matches(seq.as_ref(), trans.as_ref(), tokens)
             }
+            RepTree::Leaf(seq, trans) => replace_all_matches(seq.as_ref(), trans.as_ref(), tokens),
         }
     }
 }
@@ -558,12 +567,16 @@ impl RepTree {
 impl Display for RepTree {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            RepTree::Branch(children) => write!(fmt, "{}",
-                children.iter()
-                .map(|rt| format!("{rt}"))
-                .reduce(|acc, i| acc + &i)
-                .unwrap_or(String::new())),
-            RepTree::Leaf(_, _) => write!(fmt, "sequence")
+            RepTree::Branch(children) => write!(
+                fmt,
+                "{}",
+                children
+                    .iter()
+                    .map(|rt| format!("{rt}"))
+                    .reduce(|acc, i| acc + &i)
+                    .unwrap_or(String::new())
+            ),
+            RepTree::Leaf(_, _) => write!(fmt, "sequence"),
         }
     }
 }
@@ -575,10 +588,7 @@ impl Debug for RepTree {
 }
 
 pub fn char_to_token(c: char) -> Vec<String> {
-    let mut to_ret = vec![
-        c.to_string(),
-        "u".to_owned() + &(c as u32).to_string()
-    ];
+    let mut to_ret = vec![c.to_string(), "u".to_owned() + &(c as u32).to_string()];
 
     if c.is_whitespace() || c.is_control() {
         to_ret.push("ws".to_string());
@@ -593,8 +603,7 @@ pub fn prog_from_str(text: &str) -> Option<SeqProg> {
 
 pub fn eval_prog_from_text<'a>(prog: &str, text: &'a str) -> Vec<Token<'a, Vec<String>>> {
     let sp = prog_from_str(prog).unwrap();
-    let mut tox = Token::token_vec_from_str(text, 
-        |r, i| char_to_token(r.chars().nth(i).unwrap()));
+    let mut tox = Token::token_vec_from_str(text, |r, i| char_to_token(r.chars().nth(i).unwrap()));
     sp.execute(&mut tox);
     tox
 }

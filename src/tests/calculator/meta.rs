@@ -3,8 +3,9 @@ use crate::meta::eval_prog_from_text;
 use super::*;
 use test_case::test_case;
 
-pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<'a, Vec<String>>> {
-    meta::eval_prog_from_text("
+pub fn calc_tokens<'a>(text: &str) -> Vec<Token<Vec<String>>> {
+    meta::eval_prog_from_text(
+        "
          ## recognize words
             (e.g. sqrt, abs)
          ##
@@ -36,7 +37,9 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<'a, Vec<String>>> {
             expr & '*' | '/' & expr: oper, expr;
             expr & '+' | '-' & expr: oper, expr;
         }
-    ", text)
+    ",
+        text,
+    )
 }
 
 pub fn eval(token: &Token<'_, Vec<String>>) -> Option<f64> {
