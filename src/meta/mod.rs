@@ -145,8 +145,23 @@ pub fn tuck_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         Box::new(has_tag("expr")),
     ]);
 
+    let paren_seq = MultipleSeq::new(vec![
+        Box::new(RawSeq::new("(")),
+        Box::new(has_tag("expr")),
+        Box::new(RawSeq::new(")")),
+    ]);
+
     repeat_until_no_change(
         &vec![
+            &|c| {
+                replace_all_matches(
+                    &paren_seq,
+                    &DeepTransform {
+                        data: vec!["parens", "expr"],
+                    },
+                    c,
+                )
+            },
             &|c| {
                 replace_all_matches(
                     &opt_seq,
@@ -401,6 +416,12 @@ pub fn eval_sequence(token: &Token<Vec<&str>>) -> Option<Box<dyn Sequence<Vec<St
                     .map(|o| o.unwrap())
                     .collect(),
             )))
+        } else {
+            None
+        }
+    } else if token.data.contains(&"parens") {
+        if let TokenType::Branch(children) = &token.t_type {
+            eval_sequence(children.get(1)?)
         } else {
             None
         }

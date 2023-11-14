@@ -62,6 +62,12 @@ raw(a) ## inline comment ##
 #[test_case("
 {.quote.}. quote;
 ", "quotea"; "quotes")]
+#[test_case("
+'a' & ('b' & 'a')*. foo;
+", "a aba ababa"; "many in parens sequence")]
+#[test_case("
+'a' & ('b' & 'a')+. foo;
+", "a aba ababa"; "one or more in parens sequence")]
 pub fn eval_simple_prog(prog: &str, text: &str) {
     graph_with_tags(&eval_prog_from_text(prog, text));
 }
