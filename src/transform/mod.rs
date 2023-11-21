@@ -55,15 +55,17 @@ impl<T> Transform<T> for RemoveTransform {
     }
 }
 
-pub fn repeat_until_no_change<T>(func: &Vec<&dyn Fn(&mut T) -> bool>, carry_over: &mut T) -> bool {
-    let mut changed = true;
+pub fn repeat_until_no_change<T>(funcs: &Vec<&dyn Fn(&mut T) -> bool>, carry_over: &mut T) -> bool {
     let mut changed_at_least_once = false;
-    while changed {
-        changed = false;
-        if func.iter().any(|f| f(carry_over)) {
-            changed = true;
+    let mut i = 0;
+    'outer: while i < funcs.len() {
+        let changed = funcs[i](carry_over);
+        if changed {
+            i = 0;
             changed_at_least_once = true;
+            continue 'outer;
         }
+        i += 1;
     }
     changed_at_least_once
 }

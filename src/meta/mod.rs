@@ -569,14 +569,16 @@ impl RepTree {
     pub fn execute(&self, prog: &SeqProg, tokens: &mut Vec<Token<Vec<String>>>) -> bool {
         match self {
             RepTree::Branch(children) => {
-                let mut changed = true;
                 let mut changed_at_least_once = false;
-                while changed {
-                    changed = false;
-                    if children.iter().any(|f| f.execute(prog, tokens)) {
-                        changed = true;
+                let mut i = 0;
+                'outer: while i < children.len() {
+                    let changed = children[i].execute(prog, tokens);
+                    if changed {
+                        i = 0;
                         changed_at_least_once = true;
+                        continue 'outer;
                     }
+                    i += 1;
                 }
                 changed_at_least_once
             }
