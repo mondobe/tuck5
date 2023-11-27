@@ -1,25 +1,29 @@
 use std::collections::HashMap;
 
+use crate::meta::graph_with_tags;
+
 use super::*;
 use test_case::test_case;
 
 pub fn parse(text: &str) -> Vec<Token<Vec<String>>> {
     meta::eval_prog_from_text(
         "
-        {.print.}. print;
-        {.let.}. let;
-        {.true.}. true, expr;
-        {.false.}. false, expr;
-        {.if.}. if;
-        {.input.}. input, expr;
-        a..z | A..Z | _. letter;
-        letter+. word, expr;
+        % {
+            {.print.}. print;
+            {.let.}. let;
+            {.true.}. true, expr;
+            {.false.}. false, expr;
+            {.if.}. if;
+            {.input.}. input, expr;
+            a..z | A..Z | _. letter;
+            letter+. word, expr;
 
-        0..9+. int, positive, number, expr;
-        int & '.' & int+. decimal, positive, number, expr;
-        '-' & positive. negative, number, expr;
+            0..9+. int, positive, number, expr;
+            int & '.' & int+. decimal, positive, number, expr;
+            '-' & positive. negative, number, expr;
 
-        ws~;
+            ws~;
+        }
 
         {
             expr & '+' & expr: add, expr;
@@ -60,7 +64,7 @@ pub enum Expression {
     Add(Box<Expression>, Box<Expression>),
     True,
     False,
-    Input
+    Input,
 }
 
 pub enum StackOp {
@@ -70,11 +74,11 @@ pub enum StackOp {
     Print,
     Add,
     If(Vec<StackOp>),
-    Input
+    Input,
 }
 
 pub fn eval_program(tokens: &Vec<Token<Vec<String>>>) -> Option<Program> {
-    // println!("{:#?}", tokens);
+    graph_with_tags(tokens);
 
     let mut to_ret = Program {
         prog: Vec::new(),
@@ -224,7 +228,7 @@ pub fn eval_to_stack(
         Expression::False => {
             ops.push(StackOp::Push(0));
             *stack_length += 1;
-        },
+        }
         Expression::Input => {
             ops.push(StackOp::Input);
             *stack_length += 1;
@@ -267,7 +271,7 @@ pub fn run_stack_ops(stack: &mut Vec<u64>, ops: &Vec<StackOp>, verbose: bool) {
                 if stack.pop().unwrap() == 1 {
                     run_stack_ops(stack, inner, verbose)
                 }
-            },
+            }
             StackOp::Input => {
                 let mut buf = String::new();
                 let _ = std::io::stdin().read_line(&mut buf);

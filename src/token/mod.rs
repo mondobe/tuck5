@@ -88,4 +88,15 @@ impl<'a, T> Token<'a, T> {
 
         Ok(())
     }
+
+    pub fn children<'b>(&'b self) -> Option<&'b Vec<Self>> {
+        match &self.t_type {
+            TokenType::Branch(children) => Some(&children),
+            _ => None,
+        }
+    }
+
+    pub fn nth_child<'b>(&'b self, n: usize) -> Option<&'b Self> {
+        self.children().map(|o| o.get(n)).flatten()
+    }
 }

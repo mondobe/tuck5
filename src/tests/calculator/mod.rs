@@ -1,3 +1,5 @@
+use crate::meta::graph_with_tags_b;
+
 use super::*;
 pub use test_case::test_case;
 
@@ -12,7 +14,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
 
     let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 
-    replace_all_matches(
+    replace_all_matches_once(
         &MultipleSeq::new(vec![
             Box::new(ChooseSeq::from_str(alphabet)),
             Box::new(RepeatedSeq::new(Box::new(ChooseSeq::from_str(alphabet)))),
@@ -21,7 +23,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         &mut tox,
     );
 
-    replace_all_matches(
+    replace_all_matches_once(
         &int_seq(),
         &ShallowTransform {
             data: vec!["int", "positive", "number", "expr"],
@@ -36,7 +38,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         Box::new(RepeatedSeq::new(Box::new(has_tag("int")))),
     ]);
 
-    replace_all_matches(
+    replace_all_matches_once(
         &decimal_seq,
         &ShallowTransform {
             data: vec!["decimal", "positive", "number", "expr"],
@@ -49,7 +51,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
         Box::new(has_tag("positive")),
     ]);
 
-    replace_all_matches(
+    replace_all_matches_once(
         &negative_seq,
         &DeepTransform {
             data: vec!["negative", "number", "expr"],
@@ -89,7 +91,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
     repeat_until_no_change(
         &vec![
             &|c| {
-                replace_all_matches(
+                replace_first_match(
                     &paren_seq,
                     &DeepTransform {
                         data: vec!["parens", "expr"],
@@ -98,7 +100,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
                 )
             },
             &|c| {
-                replace_all_matches(
+                replace_first_match(
                     &call_seq,
                     &DeepTransform {
                         data: vec!["call", "expr"],
@@ -107,7 +109,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
                 )
             },
             &|c| {
-                replace_all_matches(
+                replace_first_match(
                     &md_seq,
                     &DeepTransform {
                         data: vec!["oper", "expr"],
@@ -116,7 +118,7 @@ pub fn calc_tokens<'a>(text: &'a str) -> Vec<Token<Vec<&'a str>>> {
                 )
             },
             &|c| {
-                replace_all_matches(
+                replace_first_match(
                     &as_seq,
                     &DeepTransform {
                         data: vec!["oper", "expr"],
@@ -176,6 +178,7 @@ pub fn eval(token: &Token<'_, Vec<&str>>) -> Option<f64> {
 }
 
 pub fn eval_first(tokens: &Vec<Token<'_, Vec<&str>>>) -> Option<f64> {
+    graph_with_tags_b(tokens);
     if tokens.len() < 2 {
         eval(tokens.first()?)
     } else {

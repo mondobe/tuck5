@@ -34,7 +34,36 @@ pub fn test_and_transform<T>(
     }
 }
 
+pub fn replace_first_match<T>(
+    seq: &dyn Sequence<T>,
+    transform: &dyn Transform<T>,
+    tokens: &mut Vec<Token<'_, T>>,
+) -> bool {
+    let mut start_index = 0usize;
+    while start_index < tokens.len() {
+        let inc = test_and_transform(seq, transform, tokens, start_index);
+        if inc.is_some() {
+            return true;
+        } else {
+            start_index += 1;
+        }
+    }
+    false
+}
+
 pub fn replace_all_matches<T>(
+    seq: &dyn Sequence<T>,
+    transform: &dyn Transform<T>,
+    tokens: &mut Vec<Token<'_, T>>,
+) -> bool {
+    let mut changed = false;
+    while replace_first_match(seq, transform, tokens) {
+        changed = true;
+    }
+    changed
+}
+
+pub fn replace_all_matches_once<T>(
     seq: &dyn Sequence<T>,
     transform: &dyn Transform<T>,
     tokens: &mut Vec<Token<'_, T>>,

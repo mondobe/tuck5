@@ -1,4 +1,4 @@
-use crate::meta::eval_prog_from_text;
+use crate::meta::{eval_prog_from_text, graph_with_tags};
 
 use super::*;
 use test_case::test_case;
@@ -9,6 +9,7 @@ pub fn calc_tokens<'a>(text: &str) -> Vec<Token<Vec<String>>> {
          ## recognize words
             (e.g. sqrt, abs)
          ##
+        % {
         a..z | A..Z | '_'. letter;
         letter+. word;
 
@@ -27,6 +28,7 @@ pub fn calc_tokens<'a>(text: &str) -> Vec<Token<Vec<String>>> {
 
           # remove whitespace
         ws~;
+        }
 
          ## The members of \"PEMDAS\" you know and love, along with function
             calls.
@@ -87,6 +89,7 @@ pub fn eval(token: &Token<'_, Vec<String>>) -> Option<f64> {
 }
 
 pub fn eval_first(tokens: &Vec<Token<'_, Vec<String>>>) -> Option<f64> {
+    graph_with_tags(tokens);
     if tokens.len() < 2 {
         eval(tokens.first()?)
     } else {

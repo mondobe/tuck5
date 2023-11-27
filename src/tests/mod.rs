@@ -1,5 +1,5 @@
 use crate::sequence::*;
 use crate::transform::*;
 
-mod calculator;
-mod interp;
+pub mod calculator;
+pub mod interp;
